@@ -5,7 +5,9 @@ import requests
 import MeCab
 from bs4 import BeautifulSoup
 from selenium import webdriver
+
 from bing_api import Bing
+from ngram import text2words, wordNgram
 
 
 if __name__ == '__main__':
@@ -33,18 +35,14 @@ if __name__ == '__main__':
 
 
     #text_setを用いて登録単語候補を作成する
-    #NElogdを用いた１単位の分割を１単語として単語Ngramを用いる
-    mt = MeCab.Tagger("-Ochasen -d /usr/local/lib/mecab/dic/mecab-ipadic-neologd/")
+    registration_word_candidate = []
     for gram in range(1,11):
         for text in text_set:
-            #text = text.encode("utf-8")
-            node = mt.parseToNode(text)
-            while node:
-                print(node.feature)
-                node = node.next
+            words = text2words(text)
+            ngram = wordNgram(words, gram)
+            registration_word_candidate.extend(ngram)
 
-
-    #超大事
+    print(registration_word_candidate)
     #作成した候補を評価する
 
 
@@ -52,3 +50,7 @@ if __name__ == '__main__':
 
 
     #csvデータに書き込む
+
+
+
+    
