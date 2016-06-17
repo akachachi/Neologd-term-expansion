@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 
 from bing_api import Bing
 from ngram import text2words, wordNgram
-from bing_hitcount import hitcount
+from normalize_neologd import normalize_neologd
 
 
 #mecabの辞書に登録されている単語は配列から除外する
@@ -17,9 +17,12 @@ def removeRegisterdWord(words):
     for word in words:
         node = mt.parseToNode(word)
         feature = node.next.feature.split(',')
+
+        #読み仮名がある場合，辞書に登録されているので削除対象
         if len(feature) >= 8:
             word_for_del.append(word)
 
+    #実際に単語を削除
     for word in word_for_del:
         words.remove(word)
 
@@ -37,8 +40,6 @@ if __name__ == '__main__':
         query.append(li.string)
 
 
-    #，や（）で句切られているものがあるので，出発点のクエリを整形，せんでええ！！
-
     query = ['中居正広']
     #各クエリで検索結果のタイトルとスニペットを取得
     bing = Bing('oRqVUnUoJuoHsbY/fnRxFLqEHjdDYeBz66ksaNtBwh4')
@@ -46,11 +47,9 @@ if __name__ == '__main__':
     for q in query:
         search_results = bing.web_search(q, 10, ["Title", "Description"])
         for doc in search_results:
-            #正規化必要
-            text_set.append(doc["Title"])
-            print(doc["Title"])
-            text_set.append(doc["Description"])
-
+            #正規化をして追加する
+            text_set.append(normalize_neologd(doc["Title"]))
+            text_set.append(normalize_neologd(doc["Description"]))
 
     #text_setを用いて登録単語候補を作成する
     registration_word_candidate = []
@@ -62,20 +61,42 @@ if __name__ == '__main__':
             #N=1のとき，mecabに 分割はされるが読み仮名がついていないものは辞書に未登録
             #読み仮名がすでに振られている単語は登録済みなので除外する
             if N == 1:
-                print(ngram)
                 ngram = removeRegisterdWord(ngram)
-                print(ngram)
 
             registration_word_candidate.extend(ngram)
 
-    #print(registration_word_candidate)
-    #作成した候補を評価する 1000件かなぁ
+
+    #候補を評価 フレーズ検索結果が1000件あれば追加単語とする
+ #   registration_word = []
+ #   for candidate in registration_word_candidate:
+ #       phrase_query = "\"" + candidate + "\""
+ #       hit_count = hitcount(phrase_query)
+ #
+ #       if hit_count >= 1000 :
+ #           print(candidate)
+ #           registration_word.append(candidate)
+
+
+
+    #候補を評価　そのフレーズに名詞と形容詞が計２つ以上なら登録
+    registration_word = []
     for candidate in registration_word_candidate:
+        mt = MeCab.Tagger("-d /usr/local/lib/mecab/dic/mecab-ipadic-neologd/")
+        node = mt.parseToNode(candidate)
 
-        phrase_query = "\"" + candidate + "\""
-        hit_count = hitcount(phrase_query)
-        print(hit_count, phrase_query)
+        #名詞形容詞の数を数える
+        num_of_meanigful = 0
+        while node:
+            feature = node.feature.split(',')
+            if feature[0] == "名詞" or feature[0] == "形容詞":
+                num_of_meanigful += 1
+            node = node.next
 
+        #数に応じて登録する単語を選択
+        if num_of_meanigful >= 2:
+            registration_word.append(candidate)
+
+    print(registration_word)
     #辞書に追加することが決まった単語の読みを作成する
 
 
@@ -83,4 +104,3 @@ if __name__ == '__main__':
 
 
 
-    
