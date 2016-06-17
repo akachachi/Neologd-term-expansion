@@ -3,6 +3,7 @@
 import requests
 import MeCab
 from bs4 import BeautifulSoup
+import csv
 
 from bing_api import Bing
 from ngram import text2words, wordNgram
@@ -31,7 +32,8 @@ def removeRegisterdWord(words):
 
 
 
-if __name__ == '__main__':
+
+def main():
     
     #単語取得の出発点となるクエリを取得
     query = []
@@ -39,15 +41,13 @@ if __name__ == '__main__':
     soup = BeautifulSoup(r.text, "html.parser")
     for li in soup.find_all('li'):
         query.append(li.string)
-        #綺麗にする
 
 
-    query = ['中居正広']
     #各クエリで検索結果のタイトルとスニペットを取得
     bing = Bing('oRqVUnUoJuoHsbY/fnRxFLqEHjdDYeBz66ksaNtBwh4')
     text_set = []
     for q in query:
-        search_results = bing.web_search(q, 10, ["Title", "Description"])
+        search_results = bing.web_search(q, 300, ["Title", "Description"])
         for doc in search_results:
             #正規化をして追加する
             text_set.append(normalize_neologd(doc["Title"]))
@@ -68,7 +68,6 @@ if __name__ == '__main__':
                 registration_word_candidate_unigram.extend(removeRegisterdWord(ngram))
             else:
                 registration_word_candidate_Ngram.extend(ngram)
-
 
     #候補を評価 フレーズ検索結果が1000件あれば追加単語とする
  #   registration_word = []
@@ -102,16 +101,16 @@ if __name__ == '__main__':
 
     #重複を削除
     registration_word = list(set(registration_word_candidate_unigram + registration_word))
-    print(len(registration_word))
 
 
-    #辞書に追加することが決まった単語の読みを作成する
+    #辞書に追加する単語の読みを作成する
     registration_word_kana = []
     for word in registration_word:
         node = mt.parseToNode(word)    
         kana = ""
         while node:
             feature = node.feature.split(',')
+            #読みがないものは * を代用
             if len(feature) >= 8:
                 kana += feature[7]
             else:
@@ -119,12 +118,28 @@ if __name__ == '__main__':
 
             node = node.next
     
+        #最初と最後のBOS/EOSに関するものを削除
         kana = kana[1:-1]
         registration_word_kana.append(kana)
 
+    #書き込みやすいように整形
+    data = []
     for i in range(len(registration_word)):
-        print(registration_word[i], registration_word_kana[i])
-    #csvデータに書き込む
+        data.append([registration_word[i], registration_word_kana[i]])
 
+    #データ書込
+    with open('new_words.txt', 'w') as f:
+        writer = csv.writer(f, lineterminator='\n')
+        writer.writerows(data)
+
+    return
+
+
+
+
+
+if __name__ == '__main__':
+
+    main()
 
 
