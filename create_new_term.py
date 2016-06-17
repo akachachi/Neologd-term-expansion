@@ -19,7 +19,8 @@ def removeRegisterdWord(words):
         feature = node.next.feature.split(',')
 
         #読み仮名がある場合，辞書に登録されているので削除対象
-        if len(feature) >= 8:
+        #記号，数もそれ単体では辞書に登録するほど意味が無いので削除対象
+        if len(feature) >= 8 or feature[0] == "記号" or feature[1] == "数":
             word_for_del.append(word)
 
     #実際に単語を削除
@@ -38,6 +39,7 @@ if __name__ == '__main__':
     soup = BeautifulSoup(r.text, "html.parser")
     for li in soup.find_all('li'):
         query.append(li.string)
+        #綺麗にする
 
 
     query = ['中居正広']
@@ -52,18 +54,20 @@ if __name__ == '__main__':
             text_set.append(normalize_neologd(doc["Description"]))
 
     #text_setを用いて登録単語候補を作成する
-    registration_word_candidate = []
-    for N in range(1,6):
+    registration_word_candidate_unigram =[]
+    registration_word_candidate_Ngram = []
+    for N in range(1,4):
         for text in text_set:
             words = text2words(text)
             ngram = wordNgram(words, N)
 
-            #N=1のとき，mecabに 分割はされるが読み仮名がついていないものは辞書に未登録
+            #N=1のとき，mecabに分割はされるが読み仮名がついていないものは辞書に未登録
+            #記号や数の場合も除外対象
             #読み仮名がすでに振られている単語は登録済みなので除外する
             if N == 1:
-                ngram = removeRegisterdWord(ngram)
-
-            registration_word_candidate.extend(ngram)
+                registration_word_candidate_unigram.extend(removeRegisterdWord(ngram))
+            else:
+                registration_word_candidate_Ngram.extend(ngram)
 
 
     #候補を評価 フレーズ検索結果が1000件あれば追加単語とする
@@ -78,10 +82,10 @@ if __name__ == '__main__':
 
 
 
+    mt = MeCab.Tagger("-d /usr/local/lib/mecab/dic/mecab-ipadic-neologd/")
     #候補を評価　そのフレーズに名詞と形容詞が計２つ以上なら登録
     registration_word = []
-    for candidate in registration_word_candidate:
-        mt = MeCab.Tagger("-d /usr/local/lib/mecab/dic/mecab-ipadic-neologd/")
+    for candidate in registration_word_candidate_Ngram:
         node = mt.parseToNode(candidate)
 
         #名詞形容詞の数を数える
@@ -96,10 +100,30 @@ if __name__ == '__main__':
         if num_of_meanigful >= 2:
             registration_word.append(candidate)
 
-    print(registration_word)
+    #重複を削除
+    registration_word = list(set(registration_word_candidate_unigram + registration_word))
+    print(len(registration_word))
+
+
     #辞書に追加することが決まった単語の読みを作成する
+    registration_word_kana = []
+    for word in registration_word:
+        node = mt.parseToNode(word)    
+        kana = ""
+        while node:
+            feature = node.feature.split(',')
+            if len(feature) >= 8:
+                kana += feature[7]
+            else:
+                kana += "*"
 
+            node = node.next
+    
+        kana = kana[1:-1]
+        registration_word_kana.append(kana)
 
+    for i in range(len(registration_word)):
+        print(registration_word[i], registration_word_kana[i])
     #csvデータに書き込む
 
 
