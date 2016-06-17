@@ -1,10 +1,14 @@
-import subprocess as sbp
+import MeCab
 
 def text2words(text):
-    morp = sbp.getstatusoutput("echo " + text + " | mecab -Owakati -d /usr/local/lib/mecab/dic/mecab-ipadic-neologd/")
+    mt = MeCab.Tagger("-d /usr/local/lib/mecab/dic/mecab-ipadic-neologd/")
+    mt.parse('')
+    node = mt.parseToNode(text)
 
-    morps = morp[1].replace('\n', '')
-    words = morps.split(' ')
+    words = []
+    while node:
+        words.append(node.surface)
+        node = node.next
 
     return words
 
@@ -24,7 +28,3 @@ def wordNgram(words, N):
     return ngram
 
 
-
-if __name__ == '__main__':
-    print(text2words("中居正広のタイトルから辛そうで辛くない少し辛いラー油"))
-    print(wordNgram(text2words("中居正広のタイトルから辛そうで辛くない少し辛いラー油"), 2))
