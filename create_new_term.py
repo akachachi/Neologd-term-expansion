@@ -51,7 +51,7 @@ def main():
     """
     各クエリでの検索結果300件のタイトルとスニペットを取得
     """
-    bing = Bing('BingSearchAPIKey')
+    bing = Bing('BingSearchAPIKey') #必須：api keyを入力
     text_set = []
     for q in query:
         search_results = bing.web_search(q, 300, ["Title", "Description"])
