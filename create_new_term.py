@@ -10,7 +10,9 @@ from ngram import text2words, wordNgram
 from normalize_neologd import normalize_neologd
 
 
-#mecabの辞書に登録されている単語は配列から除外する
+"""
+NEologdの辞書に登録されている単語は配列から除外する
+"""
 def removeRegisterdWord(words):
     mt = MeCab.Tagger("-d /usr/local/lib/mecab/dic/mecab-ipadic-neologd/")
 
@@ -35,7 +37,10 @@ def removeRegisterdWord(words):
 
 def main():
     
-    #単語取得の出発点となるクエリを取得
+    """
+    単語取得の出発点となるクエリを取得
+    以下のURLは若者が使う新語・流行語一覧を記載している
+    """
     query = []
     r = requests.get('http://bosesound.blog133.fc2.com/blog-entry-155.html')
     soup = BeautifulSoup(r.text, "html.parser")
@@ -43,8 +48,10 @@ def main():
         query.append(li.string)
 
 
-    #各クエリで検索結果のタイトルとスニペットを取得
-    bing = Bing('oRqVUnUoJuoHsbY/fnRxFLqEHjdDYeBz66ksaNtBwh4')
+    """
+    各クエリでの検索結果300件のタイトルとスニペットを取得
+    """
+    bing = Bing('BingSearchAPIKey')
     text_set = []
     for q in query:
         search_results = bing.web_search(q, 300, ["Title", "Description"])
@@ -53,7 +60,13 @@ def main():
             text_set.append(normalize_neologd(doc["Title"]))
             text_set.append(normalize_neologd(doc["Description"]))
 
-    #text_setを用いて登録単語候補を作成する
+
+    """ 
+    text_setを用いて登録単語候補を作成する
+    単語候補のパターンは
+    1.NEologdで1形態素として分割されるが読み仮名がついていない単語
+    2.分割された単語を2 or 3つつなげたもの
+    """
     registration_word_candidate_unigram =[]
     registration_word_candidate_Ngram = []
     for N in range(1,4):
@@ -61,13 +74,12 @@ def main():
             words = text2words(text)
             ngram = wordNgram(words, N)
 
-            #N=1のとき，mecabに分割はされるが読み仮名がついていないものは辞書に未登録
-            #記号や数の場合も除外対象
-            #読み仮名がすでに振られている単語は登録済みなので除外する
+            #1形態素として記号や数，読み仮名がすでに振られている単語は登録済みなので除外対象
             if N == 1:
                 registration_word_candidate_unigram.extend(removeRegisterdWord(ngram))
             else:
                 registration_word_candidate_Ngram.extend(ngram)
+
 
     #候補を評価 フレーズ検索結果が1000件あれば追加単語とする
  #   registration_word = []
@@ -80,11 +92,12 @@ def main():
  #           registration_word.append(candidate)
 
 
-
-    mt = MeCab.Tagger("-d /usr/local/lib/mecab/dic/mecab-ipadic-neologd/")
-    #候補を評価　そのフレーズに名詞と形容詞が計２つ以上なら登録
+    """
+    候補を評価　そのフレーズに名詞と形容詞が計２つ以上存在するなら登録
+    """
     registration_word = []
     for candidate in registration_word_candidate_Ngram:
+        mt = MeCab.Tagger("-d /usr/local/lib/mecab/dic/mecab-ipadic-neologd/")
         node = mt.parseToNode(candidate)
 
         #名詞形容詞の数を数える
@@ -95,7 +108,6 @@ def main():
                 num_of_meanigful += 1
             node = node.next
 
-        #数に応じて登録する単語を選択
         if num_of_meanigful >= 2:
             registration_word.append(candidate)
 
@@ -103,9 +115,12 @@ def main():
     registration_word = list(set(registration_word_candidate_unigram + registration_word))
 
 
-    #辞書に追加する単語の読みを作成する
+    """
+    辞書に追加する単語の読みを作成する
+    """
     registration_word_kana = []
     for word in registration_word:
+        mt = MeCab.Tagger("-d /usr/local/lib/mecab/dic/mecab-ipadic-neologd/")
         node = mt.parseToNode(word)    
         kana = ""
         while node:
@@ -122,12 +137,18 @@ def main():
         kana = kana[1:-1]
         registration_word_kana.append(kana)
 
-    #書き込みやすいように整形
+
+    """
+    書き込みやすいように整形
+    """
     data = []
     for i in range(len(registration_word)):
         data.append([registration_word[i], registration_word_kana[i]])
 
-    #データ書込
+
+    """
+    データ書込
+    """
     with open('new_words.txt', 'w') as f:
         writer = csv.writer(f, lineterminator='\n')
         writer.writerows(data)
