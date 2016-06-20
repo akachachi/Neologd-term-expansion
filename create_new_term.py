@@ -4,6 +4,8 @@ import requests
 import MeCab
 from bs4 import BeautifulSoup
 import csv
+import argparse
+
 
 from bing_api import Bing
 from ngram import text2words, wordNgram
@@ -11,7 +13,7 @@ from normalize_neologd import normalize_neologd
 
 
 
-def main():
+def main(bing_key):
     
     """
     単語取得の出発点となるクエリを取得
@@ -27,7 +29,8 @@ def main():
     """
     各クエリでの検索結果300件のタイトルとスニペットを取得
     """
-    bing = Bing('enter Bing Search API Key here') #必須：api keyを入力
+    bing = Bing(bing_key)
+
     text_set = []
     for q in query:
         search_results = bing.web_search(q, 300, ["Title", "Description"])
@@ -114,6 +117,11 @@ def main():
 
 if __name__ == '__main__':
 
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('bing_key', type=str, nargs=1)
+    args = parser.parse_args()
+    bing_key = args.bing_key[0]
+    
+    main(bing_key)
 
 
